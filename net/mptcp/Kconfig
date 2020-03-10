@@ -1,0 +1,212 @@
+#
+# MPTCP configuration
+#
+config MPTCP
+        bool "MPTCP protocol"
+        depends on (IPV6=y || IPV6=n)
+        ---help---
+          This replaces the normal TCP stack with a Multipath TCP stack,
+          able to use several paths at once.
+
+menuconfig MPTCP_PM_ADVANCED
+	bool "MPTCP: advanced path-manager control"
+	depends on MPTCP=y
+	---help---
+	  Support for selection of different path-managers. You should choose 'Y' here,
+	  because otherwise you will not actively create new MPTCP-subflows.
+
+if MPTCP_PM_ADVANCED
+
+config MPTCP_FULLMESH
+	tristate "MPTCP Full-Mesh Path-Manager"
+	depends on MPTCP=y
+	---help---
+	  This path-management module will create a full-mesh among all IP-addresses.
+
+config MPTCP_NDIFFPORTS
+	tristate "MPTCP ndiff-ports"
+	depends on MPTCP=y
+	---help---
+	  This path-management module will create multiple subflows between the same
+	  pair of IP-addresses, modifying the source-port. You can set the number
+	  of subflows via the mptcp_ndiffports-sysctl.
+
+config MPTCP_BINDER
+	tristate "MPTCP Binder"
+	depends on (MPTCP=y)
+	---help---
+	  This path-management module works like ndiffports, and adds the sysctl
+	  option to set the gateway (and/or path to) per each additional subflow
+	  via Loose Source Routing (IPv4 only).
+
+choice
+	prompt "Default MPTCP Path-Manager"
+	default DEFAULT
+	help
+	  Select the Path-Manager of your choice
+
+	config DEFAULT_FULLMESH
+		bool "Full mesh" if MPTCP_FULLMESH=y
+
+	config DEFAULT_NDIFFPORTS
+		bool "ndiff-ports" if MPTCP_NDIFFPORTS=y
+
+	config DEFAULT_BINDER
+		bool "binder" if MPTCP_BINDER=y
+
+	config DEFAULT_DUMMY
+		bool "Default"
+
+endchoice
+
+endif
+
+config DEFAULT_MPTCP_PM
+	string
+	default "default" if DEFAULT_DUMMY
+	default "fullmesh" if DEFAULT_FULLMESH 
+	default "ndiffports" if DEFAULT_NDIFFPORTS
+	default "binder" if DEFAULT_BINDER
+	default "default"
+
+menuconfig MPTCP_SCHED_ADVANCED
+	bool "MPTCP: advanced scheduler control"
+	depends on MPTCP=y
+	---help---
+	  Support for selection of different schedulers. You should choose 'Y' here,
+	  if you want to choose a different scheduler than the default one.
+
+if MPTCP_SCHED_ADVANCED
+
+config MPTCP_ROUNDROBIN
+	tristate "MPTCP Round-Robin"
+	depends on (MPTCP=y)
+	---help---
+	  This is a very simple round-robin scheduler. Probably has bad performance
+	  but might be interesting for researchers.
+
+config MPTCP_REDUNDANT
+	tristate "MPTCP Redundant"
+	depends on (MPTCP=y)
+	---help---
+	  This scheduler sends all packets redundantly over all subflows to decreases
+	  latency and jitter on the cost of lower throughput.
+
+config MPTCP_OPPREDUNDANT
+	tristate "MPTCP Opportunistic Redundant"
+	depends on (MPTCP=y)
+	---help---
+	  This is like the redundant scheduler, but sends packets on all subflows
+	  which have not exhausted their congestion window when a packet is scheduled
+	  for the first time.
+
+config MPTCP_TAGALONG
+	tristate "MPTCP Tag-along Redundant"
+	depends on (MPTCP=y)
+	---help---
+	  This is the tag-along redundant scheduler.  It sends each packet on each subflow,
+	  but when a subflow falls more than a certain number of packets behind sk_send_head
+	  it skips sending some redundant packets to catch up, ot "tag along".
+
+config MPTCP_MONKEYTAIL
+	tristate "MPTCP Monkeytail Redundant"
+	depends on (MPTCP=y)
+	---help---
+	  This is the monkeytail redundant scheduler.  It is a hybrid between tagalong
+	  and redundant.  The head of the monkey is allowed to skip ahead in the queue,
+	  like tagalong, but it leaves its tail behind, which behaves like redundant.
+
+config MPTCP_LAZYTAIL
+	tristate "MPTCP Lazytail Redundant"
+	depends on (MPTCP=y)
+	---help---
+	  This is the lazytail redundant scheduler.  It is like monkeytail, except
+	  that instead of servicing the monkey's tail on fixed intervals, it only
+	  services the tail when the head and tail are out of sync, and when the
+	  tail has been overtaken by ACKs.
+	  
+config MPTCP_LOUDEN
+	tristate "MPTCP Louden Redundant"
+	depends on (MPTCP=y)
+	---help---
+	  This is the louden redundant scheduler.  It behaves like tagalong,
+	  but services the reinject queue like redundant.  That is, it resends
+	  dropped packets ASAP on all subflows.
+
+choice
+	prompt "Default MPTCP Scheduler"
+	default DEFAULT
+	help
+	  Select the Scheduler of your choice
+
+	config DEFAULT_SCHEDULER
+		bool "Default"
+		---help---
+		  This is the default scheduler, sending first on the subflow
+		  with the lowest RTT.
+
+	config DEFAULT_ROUNDROBIN
+		bool "Round-Robin" if MPTCP_ROUNDROBIN=y
+		---help---
+		  This is the round-rob scheduler, sending in a round-robin
+		  fashion..
+
+	config DEFAULT_REDUNDANT
+		bool "Redundant" if MPTCP_REDUNDANT=y
+		---help---
+		  This is the redundant scheduler, sending packets redundantly over
+		  all the subflows.
+
+	config DEFAULT_OPPREDUNDANT
+		bool "OppRedundant" if MPTCP_OPPREDUNDANT=y
+		---help---
+		  This is the opportunistic redundant scheduler, sending packets packets on all subflows
+		  which have not exhausted their congestion window when a packet is scheduled
+		  for the first time.
+
+	config DEFAULT_TAGALONG
+		bool "Tagalong" if MPTCP_TAGALONG=y
+		---help---
+		  This is the tag-along redundant scheduler.  It sends each packet on each subflow,
+		  but when a subflow falls more than a certain number of packets behind sk_send_head
+		  it skips sending some redundant packets to catch up, ot "tag along".
+
+	config DEFAULT_MONKEYTAIL
+		bool "MonkeyTail" if MPTCP_MONKEYTAIL=y
+		---help---
+		  This is the monkeytail redundant scheduler.  It is a hybrid between tagalong
+		  and redundant.  The head of the monkey is allowed to skip ahead in the queue,
+		  like tagalong, but it leaves its tail behind, which behaves like redundant.
+
+	config DEFAULT_LAZYTAIL
+		bool "LazyTail" if MPTCP_LAZYTAIL=y
+		---help---
+		  This is the lazytail redundant scheduler.  It is like monkeytail, except
+		  that instead of servicing the monkey's tail on fixed intervals, it only
+		  services the tail when the head and tail are out of sync, and when the
+		  tail has been overtaken by ACKs.
+
+	config DEFAULT_LOUDEN
+		bool "Louden" if MPTCP_LOUDEN=y
+		---help---
+		  This is the louden redundant scheduler.  It behaves like tagalong,
+		  but services the reinject queue like redundant.  That is, it resends
+		  dropped packets ASAP on all subflows.
+
+
+endchoice
+endif
+
+config DEFAULT_MPTCP_SCHED
+	string
+	depends on (MPTCP=y)
+	default "default" if DEFAULT_SCHEDULER
+	default "roundrobin" if DEFAULT_ROUNDROBIN
+	default "redundant" if DEFAULT_REDUNDANT
+	default "oppredundant" if DEFAULT_OPPREDUNDANT
+	default "tagalong" if DEFAULT_TAGALONG
+	default "monkeytail" if DEFAULT_MONKEYTAIL
+	default "lazytail" if DEFAULT_LAZYTAIL
+	default "louden" if DEFAULT_LOUDEN
+	default "default"
+
